@@ -108,7 +108,7 @@ export default function Publisher() {
             <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', background: '#f8fafc', overflowY: 'auto', flex: 1, maxHeight: '350px', marginBottom: '16px' }}>
                 {sites.length === 0 ? <p style={{padding:'24px', textAlign:'center', color:'var(--text-secondary)'}}>No active sites available.</p> : null}
                 {sites.map((site) => (
-                    <label key={site.id} style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background 0.2s', background: selectedSites.includes(site.id) ? 'white' : 'transparent' }}>
+                    <label key={site.id} onClick={() => toggleSite(site.id)} style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background 0.2s', background: selectedSites.includes(site.id) ? 'white' : 'transparent' }}>
                         {selectedSites.includes(site.id) ? <CheckSquare size={18} color="var(--accent-color)"/> : <Square size={18} color="#cbd5e1"/> }
                         <div style={{ marginLeft: '12px', flex: 1 }}>
                             <div style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '13px' }}>{site.site_name}</div>

@@ -1,14 +1,42 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
-import { Bot, UploadCloud, AlertCircle, Database, Globe, RefreshCw, Send } from 'lucide-react';
+import { Bot, UploadCloud, AlertCircle, Database, Globe, RefreshCw, Send, Calendar } from 'lucide-react';
+
+import { DateRange } from 'react-date-range';
+import { format } from 'date-fns';
+import 'react-date-range/dist/styles.css';
+import 'react-date-range/dist/theme/default.css';
 
 export default function Dashboard() {
-  const [crawlData, setCrawlData] = useState({ startDate: '', endDate: '', maxPosts: 10 });
+  const [crawlData, setCrawlData] = useState({ maxPosts: 10 });
   const [loadingCrawl, setLoadingCrawl] = useState(false);
   const [loadingSync, setLoadingSync] = useState(false);
   const [message, setMessage] = useState('');
   
   const [stats, setStats] = useState({ totalSites: 0, totalArticles: 0, todayArticles: 0, readyToPublish: 0 });
+
+  // Date Range Picker State
+  const [showCalendar, setShowCalendar] = useState(false);
+  const [dateRange, setDateRange] = useState([
+    {
+      startDate: new Date(),
+      endDate: new Date(),
+      key: 'selection',
+      color: 'var(--accent-color)'
+    }
+  ]);
+  const calendarRef = useRef(null);
+
+  // Đóng calendar khi click ra ngoài
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (calendarRef.current && !calendarRef.current.contains(event.target)) {
+        setShowCalendar(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
 
   const fetchStats = () => {
     api.get('/stats').then(res => {
@@ -26,7 +54,13 @@ export default function Dashboard() {
     e.preventDefault();
     setLoadingCrawl(true); setMessage('');
     try {
-      const { data } = await api.post('/jobs/crawl-and-ai', crawlData);
+      const payload = {
+        startDate: format(dateRange[0].startDate, 'yyyy-MM-dd'),
+        endDate: format(dateRange[0].endDate, 'yyyy-MM-dd'),
+        maxPosts: crawlData.maxPosts
+      };
+
+      const { data } = await api.post('/jobs/crawl-and-ai', payload);
       setMessage(data.message);
       fetchStats();
     } catch (err) { setMessage('Crawl Error: ' + (err.response?.data?.message || err.message)); }
@@ -100,23 +134,43 @@ export default function Dashboard() {
             </div>
           </div>
 
-          <form onSubmit={handleCrawl} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: 'var(--text-primary)' }}>Start Date</label>
-                <input type="date" className="glass-input" required value={crawlData.startDate} onChange={e => setCrawlData({...crawlData, startDate: e.target.value})} />
+          <form onSubmit={handleCrawl} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            
+            {/* Custom Date Range Component */}
+            <div style={{ position: 'relative' }} ref={calendarRef}>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: 'var(--text-primary)' }}>Data Extraction Range</label>
+              
+              <div 
+                className="glass-input" 
+                style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#ffffff', cursor: 'pointer', padding: '12px 16px' }}
+                onClick={() => setShowCalendar(!showCalendar)}
+              >
+                <Calendar size={18} color="var(--text-secondary)" />
+                <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>
+                  {format(dateRange[0].startDate, 'MMM dd, yyyy')} - {format(dateRange[0].endDate, 'MMM dd, yyyy')}
+                </span>
               </div>
-              <div>
-                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: 'var(--text-primary)' }}>End Date</label>
-                <input type="date" className="glass-input" required value={crawlData.endDate} onChange={e => setCrawlData({...crawlData, endDate: e.target.value})} />
-              </div>
+
+              {showCalendar && (
+                <div style={{ position: 'absolute', top: '70px', left: 0, zIndex: 1000, boxShadow: 'var(--shadow-md)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                  <DateRange
+                    editableDateInputs={true}
+                    onChange={item => setDateRange([item.selection])}
+                    moveRangeOnFirstSelection={false}
+                    ranges={dateRange}
+                    months={1}
+                    direction="horizontal"
+                  />
+                </div>
+              )}
             </div>
+
             <div>
               <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: 'var(--text-primary)' }}>Max Items Per Run</label>
-              <input type="number" className="glass-input" min="1" max="100" value={crawlData.maxPosts} onChange={e => setCrawlData({...crawlData, maxPosts: e.target.value})} />
+              <input type="number" className="glass-input" style={{background: '#ffffff', padding: '12px 16px'}} min="1" max="100" value={crawlData.maxPosts} onChange={e => setCrawlData({...crawlData, maxPosts: e.target.value})} />
             </div>
             
-            <button className="glass-button primary" type="submit" disabled={loadingCrawl} style={{ marginTop: '8px', justifyContent: 'center', padding: '10px' }}>
+            <button className="glass-button primary" type="submit" disabled={loadingCrawl} style={{ marginTop: '8px', justifyContent: 'center', padding: '14px', fontSize: '14px', fontWeight: '700' }}>
               {loadingCrawl ? 'Processing in background...' : 'INITIALIZE PIPELINE'}
             </button>
           </form>
@@ -140,7 +194,7 @@ export default function Dashboard() {
             </p>
           </div>
 
-          <button onClick={handleSync} className="glass-button" disabled={loadingSync} style={{ marginTop: '20px', justifyContent: 'center', padding: '10px', background: 'var(--text-primary)', color: 'white', border: 'none' }}>
+          <button onClick={handleSync} className="glass-button" disabled={loadingSync} style={{ marginTop: '20px', justifyContent: 'center', padding: '14px', fontSize: '14px', fontWeight: '700', background: 'var(--text-primary)', color: 'white', border: 'none' }}>
             {loadingSync ? 'Synchronizing globally...' : 'EXECUTE FORCED SYNC'}
           </button>
         </div>

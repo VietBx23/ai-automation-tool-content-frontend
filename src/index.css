@@ -1,0 +1,178 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+
+:root {
+  --bg-color: #f3f4f6; /* Nền nhạt sang trọng */
+  --panel-bg: #ffffff; /* Thẻ trắng tinh khôi */
+  --border-color: #e5e7eb; /* Viền xám mờ nhẹ */
+  --text-primary: #111827; /* Đen đậm mạnh mẽ */
+  --text-secondary: #6b7280; /* Chữ xám thông tin nền */
+  
+  --accent-color: #2563eb; /* Tone Xanh dương công nghệ (Blue) */
+  --accent-hover: #1d4ed8;
+  --success-color: #059669; /* Xanh lá tươi */
+  --success-bg: #d1fae5;
+  --danger-color: #dc2626; /* Đỏ thông báo */
+  --danger-bg: #fee2e2;
+  
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.03);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.08), 0 4px 6px -2px rgba(0, 0, 0, 0.04);
+  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: var(--bg-color);
+  color: var(--text-primary);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Các thẻ Container Vuông Vức Gọn Gàng */
+.glass-panel {
+  background: var(--panel-bg);
+  border: 1px solid var(--border-color);
+  border-radius: 12px;
+  box-shadow: var(--shadow-sm);
+  transition: var(--transition);
+}
+
+.glass-panel:hover {
+  box-shadow: var(--shadow-md);
+}
+
+/* Các Nút Bấm Siêu Phẳng */
+.glass-button {
+  background: #ffffff;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 10px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: var(--transition);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.glass-button:hover {
+  background: #f9fafb;
+}
+
+.glass-button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.glass-button.primary {
+  background: var(--accent-color);
+  border: none;
+  color: #ffffff;
+  box-shadow: 0 2px 6px rgba(37, 99, 235, 0.3);
+}
+
+.glass-button.primary:hover {
+  background: var(--accent-hover);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.4);
+}
+
+.glass-button.danger {
+  background: var(--danger-bg);
+  border: 1px solid transparent;
+  color: var(--danger-color);
+  box-shadow: none;
+}
+
+.glass-button.danger:hover {
+  background: #fecaca;
+}
+
+.glass-button.success {
+  background: var(--success-bg);
+  border: 1px solid transparent;
+  color: var(--success-color);
+  box-shadow: none;
+}
+
+.glass-button.success:hover {
+  background: #a7f3d0;
+}
+
+/* Khung Nhập Dữ Liệu Minimalist */
+.glass-input {
+  width: 100%;
+  background: #f9fafb;
+  border: 1px solid var(--border-color);
+  color: var(--text-primary);
+  padding: 12px 16px;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: var(--transition);
+  outline: none;
+}
+
+.glass-input:focus {
+  background: #ffffff;
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.15);
+}
+
+/* Kéo Cuộn Bảng Điểu Khiển (Scrollbar) Nhỏ Gọn */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #d1d5db;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #9ca3af;
+}
+
+/* Định Vị Bảng Style Hiện Đại */
+table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+th {
+  padding: 16px;
+  font-size: 12px;
+  color: var(--text-secondary);
+  font-weight: 700;
+  border-bottom: 2px solid var(--border-color);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+td {
+  padding: 16px;
+  border-bottom: 1px solid var(--border-color);
+}
+
+tr {
+  transition: background-color 0.2s;
+}
+
+tr:hover {
+  background-color: #f9fafb;
+}
+
+tr:last-child td {
+  border-bottom: none;
+}

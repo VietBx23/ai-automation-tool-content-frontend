@@ -1,12 +1,26 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import api from '../services/api';
-import { Bot, UploadCloud, AlertCircle } from 'lucide-react';
+import { Bot, UploadCloud, AlertCircle, Database, Globe, RefreshCw, Send } from 'lucide-react';
 
 export default function Dashboard() {
   const [crawlData, setCrawlData] = useState({ startDate: '', endDate: '', maxPosts: 10 });
   const [loadingCrawl, setLoadingCrawl] = useState(false);
   const [loadingSync, setLoadingSync] = useState(false);
   const [message, setMessage] = useState('');
+  
+  const [stats, setStats] = useState({ totalSites: 0, totalArticles: 0, todayArticles: 0, readyToPublish: 0 });
+
+  const fetchStats = () => {
+    api.get('/stats').then(res => {
+       if(res.data.success) setStats(res.data.data);
+    }).catch(err => console.error("API error", err));
+  };
+
+  useEffect(() => {
+    fetchStats();
+    const interval = setInterval(fetchStats, 10000); // Tự reload stats 10s/lần
+    return () => clearInterval(interval);
+  }, []);
 
   const handleCrawl = async (e) => {
     e.preventDefault();
@@ -14,7 +28,8 @@ export default function Dashboard() {
     try {
       const { data } = await api.post('/jobs/crawl-and-ai', crawlData);
       setMessage(data.message);
-    } catch (err) { setMessage('Lỗi Cào dữ liệu: ' + (err.response?.data?.message || err.message)); }
+      fetchStats();
+    } catch (err) { setMessage('Crawl Error: ' + (err.response?.data?.message || err.message)); }
     setLoadingCrawl(false);
   };
 
@@ -23,81 +38,110 @@ export default function Dashboard() {
     try {
       const { data } = await api.post('/jobs/sync-posts');
       setMessage(data.message);
-    } catch (err) { setMessage('Lỗi Đồng bộ: ' + (err.response?.data?.message || err.message)); }
+    } catch (err) { setMessage('Sync Error: ' + (err.response?.data?.message || err.message)); }
     setLoadingSync(false);
   };
 
   return (
     <div>
-      <h1 style={{ fontSize: '32px', fontWeight: '800', marginBottom: '8px', color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>Terminal Điều Khiển</h1>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: '32px', fontSize: '15px' }}>Quản lý đa luồng tự động dành cho kho báo chí điện tử.</p>
+      <h1 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '8px', color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>Command Center</h1>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: '32px', fontSize: '13px' }}>Manage automated content pipelines and PBN distribution.</p>
       
+      {/* Thống kê Metrics */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
+         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>Nodes Connected</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+               <Globe size={24} color="var(--accent-color)" />
+               <span style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)' }}>{stats.totalSites}</span>
+            </div>
+         </div>
+         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>Database Volume</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+               <Database size={24} color="#6366f1" />
+               <span style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)' }}>{stats.totalArticles}</span>
+            </div>
+         </div>
+         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>LLM Processed</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+               <RefreshCw size={24} color="var(--success-color)" />
+               <span style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)' }}>{stats.readyToPublish}</span>
+            </div>
+         </div>
+         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>Today Incoming</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+               <Send size={24} color="#f59e0b" />
+               <span style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)' }}>{stats.todayArticles}</span>
+            </div>
+         </div>
+      </div>
+
       {message && (
-        <div className="glass-panel" style={{ padding: '16px 20px', marginBottom: '32px', borderLeft: '4px solid var(--accent-color)', display: 'flex', alignItems: 'center', gap: '12px', background: '#eff6ff', borderRadius: '8px' }}>
-          <AlertCircle size={20} color="var(--accent-color)" />
-          <span style={{ color: 'var(--accent-color)', fontWeight: '600' }}>{message}</span>
+        <div className="glass-panel" style={{ padding: '12px 16px', marginBottom: '24px', borderLeft: '4px solid var(--accent-color)', display: 'flex', alignItems: 'center', gap: '10px', background: '#eff6ff', borderRadius: '6px' }}>
+          <AlertCircle size={18} color="var(--accent-color)" />
+          <span style={{ color: 'var(--accent-color)', fontWeight: '500', fontSize: '13px' }}>{message}</span>
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(450px, 1fr))', gap: '24px' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' }}>
         
         {/* Panel 1: AI Crawler */}
-        <div className="glass-panel" style={{ padding: '32px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-            <div style={{ padding: '14px', background: '#eff6ff', borderRadius: '14px', color: 'var(--accent-color)' }}>
-              <Bot size={28} />
+        <div className="glass-panel" style={{ padding: '24px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
+            <div style={{ padding: '10px', background: '#eff6ff', borderRadius: '10px', color: 'var(--accent-color)' }}>
+              <Bot size={22} />
             </div>
             <div>
-              <h2 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-primary)' }}>1. Sáng Tạo Bằng AI Tự Động</h2>
-              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '4px' }}>Rút trích các tin mới nhất qua bộ lọc LLM</p>
+              <h2 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)' }}>1. Auto AI Content Pipeline</h2>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>Fetch and rewrite raw articles via LLM</p>
             </div>
           </div>
 
-          <form onSubmit={handleCrawl} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <form onSubmit={handleCrawl} style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '8px', color: 'var(--text-primary)' }}>Dữ Liệu Từ Góc Ngày</label>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: 'var(--text-primary)' }}>Start Date</label>
                 <input type="date" className="glass-input" required value={crawlData.startDate} onChange={e => setCrawlData({...crawlData, startDate: e.target.value})} />
               </div>
               <div>
-                <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '8px', color: 'var(--text-primary)' }}>Quét Đến Ngày Kết Thúc</label>
+                <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: 'var(--text-primary)' }}>End Date</label>
                 <input type="date" className="glass-input" required value={crawlData.endDate} onChange={e => setCrawlData({...crawlData, endDate: e.target.value})} />
               </div>
             </div>
             <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '700', marginBottom: '8px', color: 'var(--text-primary)' }}>Nạp Tối Đa (Max Items/Lượt)</label>
+              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: 'var(--text-primary)' }}>Max Items Per Run</label>
               <input type="number" className="glass-input" min="1" max="100" value={crawlData.maxPosts} onChange={e => setCrawlData({...crawlData, maxPosts: e.target.value})} />
             </div>
             
-            <button className="glass-button primary" type="submit" disabled={loadingCrawl} style={{ marginTop: '12px', justifyContent: 'center', padding: '14px', fontSize: '15px', borderRadius: '10px' }}>
-              {loadingCrawl ? 'Đang giao việc cho Bot...' : 'KẾT NỐI MÁY CHỦ BẮT ĐẦU CHẠY'}
+            <button className="glass-button primary" type="submit" disabled={loadingCrawl} style={{ marginTop: '8px', justifyContent: 'center', padding: '10px' }}>
+              {loadingCrawl ? 'Processing in background...' : 'INITIALIZE PIPELINE'}
             </button>
           </form>
         </div>
 
         {/* Panel 2: Sync WP */}
-        <div className="glass-panel" style={{ padding: '32px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '32px' }}>
-            <div style={{ padding: '14px', background: 'var(--text-primary)', color: 'white', borderRadius: '14px' }}>
-              <UploadCloud size={28} />
+        <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
+            <div style={{ padding: '10px', background: '#f1f5f9', color: 'var(--text-primary)', borderRadius: '10px' }}>
+              <UploadCloud size={22} />
             </div>
             <div>
-              <h2 style={{ fontSize: '20px', fontWeight: '800', color: 'var(--text-primary)' }}>2. Phân Tán Trên PBN</h2>
-              <p style={{ fontSize: '14px', color: 'var(--text-secondary)', marginTop: '4px' }}>Xuất bản chùm lên các site WordPress</p>
+              <h2 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)' }}>2. Auto PBN Distribution</h2>
+              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>Publish processed articles globally</p>
             </div>
           </div>
 
-          <div style={{ padding: '20px', background: '#f9fafb', borderRadius: '12px', border: '1px solid var(--border-color)', flex: 1, display: 'flex', flexDirection: 'column', gap: '12px' }}>
-            <p style={{ fontSize: '14px', color: 'var(--text-secondary)', lineHeight: '1.7' }}>
-              Bấm nút kích hoạt, máy trạm sẽ lập tức rà soát toàn bộ hàng vắng trong hệ dữ liệu và phát tán tất cả hàng <strong style={{color:'var(--success-color)'}}>Processed (Thành Công)</strong> tới toàn bộ website đang trong trạng thái cắm cờ <strong style={{color:'var(--accent-color)'}}>Active</strong>!
-            </p>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.7', fontStyle: 'italic' }}>
-              * Bộ nén sẽ tự động phân loại, tải ảnh thẳng vào Content-Type của API WordPress và đồng bộ ngày xuất bản GMT chuẩn xác.
+          <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid var(--border-color)', flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
+              The system scans the database for all <strong style={{color:'var(--success-color)'}}>Processed</strong> queue and pushes them to all <strong style={{color:'var(--text-primary)'}}>Active</strong> WordPress instances. Redundant cross-posts are filtered.
             </p>
           </div>
 
-          <button onClick={handleSync} className="glass-button" disabled={loadingSync} style={{ marginTop: '24px', justifyContent: 'center', padding: '14px', background: 'var(--text-primary)', color: 'white', fontSize: '15px', borderRadius: '10px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>
-            {loadingSync ? 'Hệ thống đang phát trực tiếp...' : 'THỰC THI PHÁT TÁN TỨC THỜI'}
+          <button onClick={handleSync} className="glass-button" disabled={loadingSync} style={{ marginTop: '20px', justifyContent: 'center', padding: '10px', background: 'var(--text-primary)', color: 'white', border: 'none' }}>
+            {loadingSync ? 'Synchronizing globally...' : 'EXECUTE FORCED SYNC'}
           </button>
         </div>
 

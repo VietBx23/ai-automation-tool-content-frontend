@@ -73,7 +73,7 @@ export default function Sites() {
              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: '16px' }}>
                {sites.length === 0 ? <div className="glass-panel" style={{padding:'32px', textAlign:'center', color:'var(--text-secondary)', fontSize:'13px'}}>No satellite nodes configured.</div> : null}
                {sites.map(site => (
-                 <div key={site.id} className="glass-panel" style={{ padding: '20px', position: 'relative', overflow: 'hidden' }}>
+                 <div key={site._id} className="glass-panel" style={{ padding: '20px', position: 'relative', overflow: 'hidden' }}>
                     <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: '3px', background: site.status==='active' ? 'var(--accent-color)' : 'var(--border-color)' }}></div>
 
                     <div style={{ display: 'flex', gap: '16px', alignItems: 'flex-start' }}>
@@ -89,7 +89,7 @@ export default function Sites() {
                                ? <span style={{display: 'flex', alignItems: 'center', gap:'4px', fontSize:'11px', color:'var(--success-color)', fontWeight:'600', textTransform: 'uppercase'}}><CheckCircle size={12}/> Online</span>
                                : <span style={{display: 'flex', alignItems: 'center', gap:'4px', fontSize:'11px', color:'var(--text-secondary)', fontWeight:'600', textTransform: 'uppercase'}}><XCircle size={12}/> Offline</span>
                              }
-                             <button className="glass-button danger" onClick={() => handleDelete(site.id)} style={{ padding: '4px 8px', fontSize: '12px' }}>
+                             <button className="glass-button danger" onClick={() => handleDelete(site._id)} style={{ padding: '4px 8px', fontSize: '12px' }}>
                                <Trash2 size={14} /> Remove
                              </button>
                           </div>

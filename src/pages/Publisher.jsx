@@ -34,7 +34,7 @@ export default function Publisher() {
 
   const selectAllSites = () => {
     if(selectedSites.length === sites.length) setSelectedSites([]);
-    else setSelectedSites(sites.map(s => s.id));
+    else setSelectedSites(sites.map(s => s._id || s.id));
   };
 
   const publish = async () => {
@@ -45,7 +45,7 @@ export default function Publisher() {
     setMessage('');
     try {
       const { data } = await api.post('/jobs/manual-publish', { 
-          articleId: Number(selectedArticle), 
+          articleId: selectedArticle, 
           websiteIds: selectedSites 
       });
       setMessage(data.message);
@@ -79,22 +79,38 @@ export default function Publisher() {
             </h2>
             <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', background: '#f8fafc', overflowY: 'auto', flex: 1, maxHeight: '500px' }}>
                 {articles.length === 0 ? <p style={{padding:'24px', textAlign:'center', color:'var(--text-secondary)'}}>No processed articles available.</p> : null}
-                {articles.map((art) => (
-                    <label key={art.id} style={{ display: 'flex', alignItems: 'flex-start', padding: '16px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', background: selectedArticle === String(art.id) ? '#eff6ff' : 'transparent', transition: 'background 0.2s' }}>
-                        <input 
-                            type="radio" 
-                            name="article_select" 
-                            style={{ marginTop: '4px', cursor: 'pointer' }}
-                            value={art.id} 
-                            checked={selectedArticle === String(art.id)} 
-                            onChange={(e) => setSelectedArticle(e.target.value)}
-                        />
-                        <div style={{ marginLeft: '12px' }}>
-                            <div style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '13px', lineHeight: '1.4', marginBottom: '4px' }}>{art.title_ai || art.title_raw}</div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>Slug: {art.slug}</div>
-                        </div>
-                    </label>
-                ))}
+                {articles.map((art) => {
+                    const artId = art._id || art.id;
+                    const isSelected = selectedArticle === String(artId);
+                    return (
+                        <label 
+                            key={artId} 
+                            onClick={() => setSelectedArticle(String(artId))}
+                            style={{ 
+                                display: 'flex', 
+                                alignItems: 'flex-start', 
+                                padding: '16px', 
+                                borderBottom: '1px solid var(--border-color)', 
+                                cursor: 'pointer', 
+                                background: isSelected ? '#eff6ff' : 'transparent', 
+                                transition: 'background 0.2s' 
+                            }}
+                        >
+                            <input 
+                                type="radio" 
+                                name="article_select" 
+                                style={{ marginTop: '4px', cursor: 'pointer' }}
+                                value={artId} 
+                                checked={isSelected} 
+                                onChange={(e) => setSelectedArticle(e.target.value)}
+                            />
+                            <div style={{ marginLeft: '12px' }}>
+                                <div style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '13px', lineHeight: '1.4', marginBottom: '4px' }}>{art.title_ai || art.title_raw}</div>
+                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>Slug: {art.slug}</div>
+                            </div>
+                        </label>
+                    );
+                })}
             </div>
          </div>
 
@@ -107,15 +123,19 @@ export default function Publisher() {
             
             <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', background: '#f8fafc', overflowY: 'auto', flex: 1, maxHeight: '350px', marginBottom: '16px' }}>
                 {sites.length === 0 ? <p style={{padding:'24px', textAlign:'center', color:'var(--text-secondary)'}}>No active sites available.</p> : null}
-                {sites.map((site) => (
-                    <label key={site.id} onClick={() => toggleSite(site.id)} style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background 0.2s', background: selectedSites.includes(site.id) ? 'white' : 'transparent' }}>
-                        {selectedSites.includes(site.id) ? <CheckSquare size={18} color="var(--accent-color)"/> : <Square size={18} color="#cbd5e1"/> }
-                        <div style={{ marginLeft: '12px', flex: 1 }}>
-                            <div style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '13px' }}>{site.site_name}</div>
-                            <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{site.domain}</div>
-                        </div>
-                    </label>
-                ))}
+                {sites.map((site) => {
+                    const sId = site._id || site.id;
+                    const isSiteSelected = selectedSites.includes(sId);
+                    return (
+                        <label key={sId} onClick={() => toggleSite(sId)} style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background 0.2s', background: isSiteSelected ? 'white' : 'transparent' }}>
+                            {isSiteSelected ? <CheckSquare size={18} color="var(--accent-color)"/> : <Square size={18} color="#cbd5e1"/> }
+                            <div style={{ marginLeft: '12px', flex: 1 }}>
+                                <div style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '13px' }}>{site.site_name}</div>
+                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{site.domain}</div>
+                            </div>
+                        </label>
+                    );
+                })}
             </div>
 
             <button onClick={publish} className="glass-button primary" disabled={publishing} style={{ justifyContent: 'center', padding: '16px', borderRadius: '10px', fontSize: '14px', background: 'var(--text-primary)' }}>

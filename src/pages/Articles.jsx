@@ -57,8 +57,8 @@ export default function Articles() {
             {loading ? (
                <tr><td colSpan="5" style={{padding: '32px', textAlign: 'center', color: 'var(--text-secondary)'}}>Loading schema...</td></tr>
             ) : data.items.map(art => (
-              <tr key={art.id} onClick={() => openArticle(art)} style={{ cursor: 'pointer' }}>
-                <td style={{ color: 'var(--text-secondary)', fontWeight: '600', textAlign: 'center' }}>{art.id}</td>
+              <tr key={art._id} onClick={() => openArticle(art)} style={{ cursor: 'pointer' }}>
+                <td style={{ color: 'var(--text-secondary)', fontWeight: '600', textAlign: 'center' }}>{art._id.slice(-6)}</td>
                 <td>
                   <div style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px', lineHeight: '1.4' }}>{art.title_ai || art.title_raw}</div>
                   <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>/{art.slug}</div>

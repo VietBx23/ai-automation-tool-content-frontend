@@ -13,7 +13,7 @@ export default function ArticleDrawer({ article, isOpen, onClose }) {
               Article Preview
             </h2>
             <div style={{ fontSize: '12px', color: 'var(--text-secondary)', display: 'flex', alignItems: 'center', gap: '4px', marginTop: '4px' }}>
-              <Tag size={12} /> ID: {article?.id}
+              <Tag size={12} /> ID: {article?._id?.slice(-6)}
             </div>
           </div>
           <button 

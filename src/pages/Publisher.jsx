@@ -6,7 +6,7 @@ export default function Publisher() {
   const [articles, setArticles] = useState([]);
   const [sites, setSites] = useState([]);
   
-  const [selectedArticle, setSelectedArticle] = useState('');
+  const [selectedArticles, setSelectedArticles] = useState([]);
   const [selectedSites, setSelectedSites] = useState([]);
   const [publishing, setPublishing] = useState(false);
   const [message, setMessage] = useState('');
@@ -24,6 +24,19 @@ export default function Publisher() {
     }).catch(console.error);
   }, []);
 
+  const toggleArticle = (id) => {
+    if (selectedArticles.includes(id)) {
+        setSelectedArticles(selectedArticles.filter(a => a !== id));
+    } else {
+        setSelectedArticles([...selectedArticles, id]);
+    }
+  };
+
+  const selectAllArticles = () => {
+    if (selectedArticles.length === articles.length) setSelectedArticles([]);
+    else setSelectedArticles(articles.map(a => a._id || a.id));
+  };
+
   const toggleSite = (id) => {
     if (selectedSites.includes(id)) {
         setSelectedSites(selectedSites.filter(s => s !== id));
@@ -38,20 +51,20 @@ export default function Publisher() {
   };
 
   const publish = async () => {
-    if (!selectedArticle) return alert('Vui lòng chọn 1 Bài viết (Article)!');
+    if (selectedArticles.length === 0) return alert('Vui lòng chọn ít nhất 1 Bài viết (Article)!');
     if (selectedSites.length === 0) return alert('Vui lòng đánh dấu ít nhất 1 Website vệ tinh!');
     
     setPublishing(true);
     setMessage('');
     try {
       const { data } = await api.post('/jobs/manual-publish', { 
-          articleId: selectedArticle, 
+          articleIds: selectedArticles, 
           websiteIds: selectedSites 
       });
       setMessage(data.message);
       // Xoá dấu tick sau khi bấm
       setSelectedSites([]);
-      setSelectedArticle('');
+      setSelectedArticles([]);
     } catch (e) { 
       setMessage('Lỗi: ' + (e.response?.data?.message || e.message)); 
     }
@@ -61,7 +74,7 @@ export default function Publisher() {
   return (
     <div>
       <h1 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '8px', color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>Manual Publisher</h1>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: '32px', fontSize: '13px' }}>Push a specific article into targeted WordPress nodes intentionally.</p>
+      <p style={{ color: 'var(--text-secondary)', marginBottom: '32px', fontSize: '13px' }}>Push specific articles into targeted WordPress nodes intentionally.</p>
 
       {message && (
         <div className="glass-panel" style={{ padding: '12px 16px', marginBottom: '24px', borderLeft: '4px solid var(--accent-color)', display: 'flex', alignItems: 'center', gap: '10px', background: '#eff6ff', borderRadius: '6px' }}>
@@ -74,36 +87,30 @@ export default function Publisher() {
          
          {/* Khu Mảnh 1: Chọn bài viết */}
          <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-            <h2 style={{ fontSize: '15px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)' }}>
-               <FileText size={18} color="var(--accent-color)" /> 1. Select Blueprint Article
+            <h2 style={{ fontSize: '15px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)', justifyContent: 'space-between' }}>
+               <div style={{display:'flex', alignItems:'center', gap:'8px'}}><FileText size={18} color="var(--accent-color)" /> 1. Select Blueprint Article(s)</div>
+               <button onClick={selectAllArticles} style={{ background:'transparent', border:'none', color:'var(--accent-color)', fontSize:'12px', fontWeight:'600', cursor:'pointer' }}>Toggle All</button>
             </h2>
             <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', background: '#f8fafc', overflowY: 'auto', flex: 1, maxHeight: '500px' }}>
                 {articles.length === 0 ? <p style={{padding:'24px', textAlign:'center', color:'var(--text-secondary)'}}>No processed articles available.</p> : null}
                 {articles.map((art) => {
                     const artId = art._id || art.id;
-                    const isSelected = selectedArticle === String(artId);
+                    const isSelected = selectedArticles.includes(artId);
                     return (
                         <label 
                             key={artId} 
-                            onClick={() => setSelectedArticle(String(artId))}
+                            onClick={() => toggleArticle(artId)}
                             style={{ 
                                 display: 'flex', 
                                 alignItems: 'flex-start', 
                                 padding: '16px', 
                                 borderBottom: '1px solid var(--border-color)', 
                                 cursor: 'pointer', 
-                                background: isSelected ? '#eff6ff' : 'transparent', 
+                                background: isSelected ? 'white' : 'transparent', 
                                 transition: 'background 0.2s' 
                             }}
                         >
-                            <input 
-                                type="radio" 
-                                name="article_select" 
-                                style={{ marginTop: '4px', cursor: 'pointer' }}
-                                value={artId} 
-                                checked={isSelected} 
-                                onChange={(e) => setSelectedArticle(e.target.value)}
-                            />
+                            {isSelected ? <CheckSquare size={18} color="var(--accent-color)"/> : <Square size={18} color="#cbd5e1"/> }
                             <div style={{ marginLeft: '12px' }}>
                                 <div style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '13px', lineHeight: '1.4', marginBottom: '4px' }}>{art.title_ai || art.title_raw}</div>
                                 <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>Slug: {art.slug}</div>

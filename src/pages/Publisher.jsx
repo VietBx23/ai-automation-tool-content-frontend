@@ -12,10 +12,10 @@ export default function Publisher() {
   const [message, setMessage] = useState('');
 
   useEffect(() => {
-    // Chỉ lấy bài viết đã Processed để show ra List
+    // Lấy bài viết đã xử lý hoặc đã đăng một phần
     api.get('/articles?limit=50').then(res => {
         const arr = res.data?.data || [];
-        setArticles(arr.filter(a => a.status === 'processed'));
+        setArticles(arr.filter(a => ['processed', 'published', 'processing', 'ai_error'].includes(a.status)));
     }).catch(console.error);
 
     api.get('/sites').then(res => {
@@ -111,9 +111,20 @@ export default function Publisher() {
                             }}
                         >
                             {isSelected ? <CheckSquare size={18} color="var(--accent-color)"/> : <Square size={18} color="#cbd5e1"/> }
-                            <div style={{ marginLeft: '12px' }}>
+                            <div style={{ marginLeft: '12px', flex: 1 }}>
                                 <div style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '13px', lineHeight: '1.4', marginBottom: '4px' }}>{art.title_ai || art.title_raw}</div>
-                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>Slug: {art.slug}</div>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                                    <div style={{ fontSize: '10px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>Slug: {art.slug || 'no-slug'}</div>
+                                    {art.published_to?.length > 0 && (
+                                        <div style={{ display: 'flex', gap: '4px' }}>
+                                            {art.published_to.map(site => (
+                                                <span key={site} style={{ fontSize: '9px', background: '#e0e7ff', color: '#4338ca', padding: '1px 5px', borderRadius: '3px', fontWeight: '600' }}>
+                                                    {site.replace('https://', '').replace(/\/$/, '')}
+                                                </span>
+                                            ))}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
                         </label>
                     );

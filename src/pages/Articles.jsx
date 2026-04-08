@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
-import { Database, Eye } from 'lucide-react';
+import { Database, Eye, ExternalLink, AlertCircle, CheckCircle, RefreshCw, Send } from 'lucide-react';
 import ArticleDrawer from '../components/ArticleDrawer';
 
 export default function Articles() {
@@ -29,12 +29,47 @@ export default function Articles() {
      return dt.toLocaleDateString('en-US', {month: 'short', day: 'numeric', year: 'numeric'});
   }
 
+  const renderStatus = (status) => {
+    switch (status) {
+      case 'published':
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', background: '#e0e7ff', color: '#4338ca' }}>
+            <Send size={10} /> PUBLISHED
+          </span>
+        );
+      case 'processed':
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', background: 'var(--success-bg)', color: 'var(--success-color)' }}>
+            <CheckCircle size={10} /> AI READY
+          </span>
+        );
+      case 'processing':
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', background: '#fef3c7', color: '#92400e' }}>
+            <RefreshCw size={10} className="spin" /> PROCESSING
+          </span>
+        );
+      case 'ai_error':
+        return (
+          <span style={{ display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', background: '#fee2e2', color: '#b91c1c' }}>
+            <AlertCircle size={10} /> AI ERROR
+          </span>
+        );
+      default:
+        return (
+          <span style={{ padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: '700', background: '#f1f5f9', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}>
+            PENDING
+          </span>
+        );
+    }
+  };
+
   return (
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', marginBottom: '24px' }}>
         <div>
           <h1 style={{ fontSize: '24px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px', letterSpacing: '-0.5px' }}>Knowledge Base</h1>
-          <p style={{color: 'var(--text-secondary)', fontSize: '13px'}}>Inventory of raw and AI-rewritten articles.</p>
+          <p style={{color: 'var(--text-secondary)', fontSize: '13px'}}>Inventory of raw and AI-rewritten articles from ESPN & API.</p>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', background: '#ffffff', border: '1px solid var(--border-color)', padding: '8px 16px', borderRadius: '8px', fontSize: '12px', fontWeight: '600', color: 'var(--text-primary)', boxShadow: 'var(--shadow-sm)' }}>
           <Database size={14} color="var(--accent-color)" />
@@ -48,14 +83,15 @@ export default function Articles() {
             <tr>
               <th style={{ width: '60px', textAlign: 'center' }}>ID</th>
               <th>AI Optimized Title & Metadata</th>
-              <th style={{ width: '150px' }}>Original Date</th>
+              <th style={{ width: '130px' }}>Date</th>
               <th style={{ width: '120px', textAlign: 'center' }}>Status</th>
+              <th style={{ width: '180px' }}>Published To</th>
               <th style={{ width: '80px', textAlign: 'center' }}>Action</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-               <tr><td colSpan="5" style={{padding: '32px', textAlign: 'center', color: 'var(--text-secondary)'}}>Loading schema...</td></tr>
+               <tr><td colSpan="6" style={{padding: '32px', textAlign: 'center', color: 'var(--text-secondary)'}}>Loading schema...</td></tr>
             ) : data.items.map(art => {
               const artId = art._id || art.id;
               return (
@@ -65,19 +101,27 @@ export default function Articles() {
                   </td>
                 <td>
                   <div style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px', lineHeight: '1.4' }}>{art.title_ai || art.title_raw}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>/{art.slug}</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <div style={{ fontSize: '10px', color: 'var(--text-secondary)', fontFamily: 'monospace', opacity: 0.7 }}>/{art.slug || 'no-slug'}</div>
+                    {art.source_url && (
+                        <a href={art.source_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: 'var(--accent-color)', display: 'flex', alignItems: 'center' }}>
+                            <ExternalLink size={10} />
+                        </a>
+                    )}
+                  </div>
                 </td>
-                <td style={{ color: 'var(--text-secondary)' }}>{d(art.post_date)}</td>
+                <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{d(art.post_date)}</td>
                 <td style={{ textAlign: 'center' }}>
-                  {art.status === 'processed' ? (
-                    <span style={{ padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', background: 'var(--success-bg)', color: 'var(--success-color)' }}>
-                      PROCESSED
-                    </span>
-                  ) : (
-                    <span style={{ padding: '4px 10px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', background: '#f1f5f9', color: 'var(--text-secondary)', border: '1px solid var(--border-color)' }}>
-                      PENDING
-                    </span>
-                  )}
+                  {renderStatus(art.status)}
+                </td>
+                <td>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px' }}>
+                        {art.published_to?.length > 0 ? art.published_to.map(site => (
+                            <span key={site} style={{ fontSize: '9px', background: '#f8fafc', border: '1px solid #e2e8f0', padding: '2px 6px', borderRadius: '4px', color: 'var(--text-secondary)' }}>
+                                {site.replace('https://', '').replace(/\/$/, '')}
+                            </span>
+                        )) : <span style={{ fontSize: '10px', color: '#cbd5e1' }}>Not published</span>}
+                    </div>
                 </td>
                 <td style={{ textAlign: 'center' }}>
                   <button 

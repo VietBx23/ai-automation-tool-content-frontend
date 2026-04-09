@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
-import { Bot, UploadCloud, AlertCircle, Database, Globe, RefreshCw, Send, Calendar } from 'lucide-react';
+import socket from '../services/socket';
+import { Bot, UploadCloud, AlertCircle, Database, Globe, RefreshCw, Send, Calendar, Radio } from 'lucide-react';
 
 import { DateRange } from 'react-date-range';
 import { format } from 'date-fns';
@@ -12,6 +13,8 @@ export default function Dashboard() {
   const [loadingCrawl, setLoadingCrawl] = useState(false);
   const [loadingSync, setLoadingSync] = useState(false);
   const [message, setMessage] = useState('');
+  const [isCrawling, setIsCrawling] = useState(false);
+  const [lastCrawlTime, setLastCrawlTime] = useState(null);
   
   const [stats, setStats] = useState({ totalSites: 0, totalArticles: 0, todayArticles: 0, readyToPublish: 0 });
 
@@ -46,9 +49,25 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchStats();
-    const interval = setInterval(fetchStats, 10000); // Tự reload stats 10s/lần
-    return () => clearInterval(interval);
+    const interval = setInterval(fetchStats, 30000); // Giảm xuống 30s vì giờ có socket
+
+    // Lắng nghe sự kiện Socket.io
+    socket.on('crawl_cycle_start', () => {
+      setIsCrawling(true);
+    });
+    socket.on('crawl_cycle_end', (data) => {
+      setIsCrawling(false);
+      setLastCrawlTime(new Date().toLocaleTimeString('vi-VN'));
+      fetchStats(); // Tự động cập nhật stats sau mỗi chu kỳ
+    });
+
+    return () => {
+      clearInterval(interval);
+      socket.off('crawl_cycle_start');
+      socket.off('crawl_cycle_end');
+    };
   }, []);
+
 
   const handleCrawl = async (e) => {
     e.preventDefault();
@@ -78,10 +97,19 @@ export default function Dashboard() {
 
   return (
     <div>
-      <h1 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '8px', color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>Command Center</h1>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
+        <h1 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>Command Center</h1>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '20px', background: isCrawling ? '#dcfce7' : '#f1f5f9', border: `1px solid ${isCrawling ? '#86efac' : '#e2e8f0'}`, transition: 'all 0.3s' }}>
+          <Radio size={14} color={isCrawling ? '#16a34a' : '#94a3b8'} style={{ animation: isCrawling ? 'spin 1.5s linear infinite' : 'none' }} />
+          <span style={{ fontSize: '12px', fontWeight: '600', color: isCrawling ? '#16a34a' : '#94a3b8' }}>
+            {isCrawling ? 'CRAWLING...' : lastCrawlTime ? `Last: ${lastCrawlTime}` : 'Idle'}
+          </span>
+        </div>
+      </div>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '32px', fontSize: '13px' }}>Manage automated content pipelines and PBN distribution.</p>
       
       {/* Thống kê Metrics */}
+
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
          <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
             <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>Nodes Connected</span>

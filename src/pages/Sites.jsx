@@ -5,7 +5,7 @@ import { Trash2, PlusCircle, Globe, CheckCircle, XCircle } from 'lucide-react';
 export default function Sites() {
   const [sites, setSites] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [formData, setFormData] = useState({ site_name: '', domain: '', wp_user: '', app_password: '', status: 'active' });
+  const [formData, setFormData] = useState({ site_name: '', domain: '', wp_user: '', app_password: '', status: 'active', language: 'English' });
 
   const fetchData = async () => {
     try { const { data } = await api.get('/sites'); setSites(data.data); } catch (err) { console.error(err); }
@@ -22,7 +22,7 @@ export default function Sites() {
     e.preventDefault();
     try {
       await api.post('/sites', formData);
-      setFormData({ site_name: '', domain: '', wp_user: '', app_password: '', status: 'active' });
+      setFormData({ site_name: '', domain: '', wp_user: '', app_password: '', status: 'active', language: 'English' });
       fetchData();
     } catch (error) { alert("Add site failed"); }
   }
@@ -63,6 +63,10 @@ export default function Sites() {
                  <option value="inactive">Inactive (Suspended)</option>
                </select>
              </div>
+             <div>
+               <label style={{fontSize:'12px', fontWeight:'600', marginBottom:'6px', display:'block'}}>Language</label>
+               <input type="text" placeholder="e.g. English, Vietnamese" className="glass-input" required value={formData.language} onChange={e=>setFormData({...formData, language: e.target.value})} />
+             </div>
              <button className="glass-button primary" type="submit" style={{ justifyContent: 'center', marginTop: '8px' }}>Register Node</button>
           </form>
         </div>
@@ -83,6 +87,11 @@ export default function Sites() {
                        <div style={{ flex: 1 }}>
                           <h3 style={{ fontSize: '15px', fontWeight: '700', color: 'var(--text-primary)', marginBottom: '4px' }}>{site.site_name}</h3>
                           <a href={site.domain} target="_blank" rel="noreferrer" style={{ fontSize: '12px', color: 'var(--text-secondary)', textDecoration: 'none', display: 'block', marginBottom: '12px' }}>{site.domain}</a>
+                          <div style={{ marginBottom: '12px' }}>
+                             <span style={{ fontSize: '11px', background: 'var(--bg-secondary)', border: '1px solid var(--border-color)', padding: '2px 8px', borderRadius: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                               {site.language || 'English'}
+                             </span>
+                          </div>
                           
                           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: '12px', borderTop: '1px solid var(--border-color)' }}>
                              {site.status === 'active' 

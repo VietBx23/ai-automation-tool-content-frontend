@@ -23,6 +23,17 @@ export default function Articles() {
     setIsDrawerOpen(true);
   };
 
+  const handleRetryAI = async (e, id) => {
+    e.stopPropagation();
+    if (!window.confirm("Bắt đầu xử lý lại AI cho bài viết này?")) return;
+    try {
+        await api.post(`/articles/${id}/retry-ai`);
+        fetchArticles();
+    } catch (err) {
+        alert("Lỗi khi thử lại: " + (err.response?.data?.error || err.message));
+    }
+  };
+
   const d = (dateStr) => {
      if(!dateStr) return 'N/A';
      const dt = new Date(dateStr);
@@ -84,6 +95,7 @@ export default function Articles() {
               <th style={{ width: '60px', textAlign: 'center' }}>ID</th>
               <th>AI Optimized Title & Metadata</th>
               <th style={{ width: '130px' }}>Date</th>
+              <th style={{ width: '120px', textAlign: 'center' }}>Category</th>
               <th style={{ width: '120px', textAlign: 'center' }}>Status</th>
               <th style={{ width: '180px' }}>Published To</th>
               <th style={{ width: '80px', textAlign: 'center' }}>Action</th>
@@ -91,7 +103,7 @@ export default function Articles() {
           </thead>
           <tbody>
             {loading ? (
-               <tr><td colSpan="6" style={{padding: '32px', textAlign: 'center', color: 'var(--text-secondary)'}}>Loading schema...</td></tr>
+               <tr><td colSpan="7" style={{padding: '32px', textAlign: 'center', color: 'var(--text-secondary)'}}>Loading schema...</td></tr>
             ) : data.items.map(art => {
               const artId = art._id || art.id;
               return (
@@ -100,8 +112,13 @@ export default function Articles() {
                     {String(artId).slice(-6)}
                   </td>
                 <td>
-                  <div style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px', lineHeight: '1.4' }}>{art.title_ai || art.title_raw}</div>
+                  <div style={{ fontWeight: '600', color: 'var(--text-primary)', marginBottom: '4px', lineHeight: '1.4' }}>
+                    {art.title_ai || art.title_raw} 
+                  </div>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ fontSize: '10px', background: '#e0f2fe', color: '#0369a1', padding: '1px 6px', borderRadius: '4px', fontWeight: 'bold' }}>
+                        {art.language || 'English'}
+                    </span>
                     <div style={{ fontSize: '10px', color: 'var(--text-secondary)', fontFamily: 'monospace', opacity: 0.7 }}>/{art.slug || 'no-slug'}</div>
                     {art.source_url && (
                         <a href={art.source_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: 'var(--accent-color)', display: 'flex', alignItems: 'center' }}>
@@ -111,6 +128,11 @@ export default function Articles() {
                   </div>
                 </td>
                 <td style={{ color: 'var(--text-secondary)', fontSize: '12px' }}>{d(art.post_date)}</td>
+                <td style={{ textAlign: 'center' }}>
+                    <span style={{ fontSize: '11px', background: '#f1f5f9', padding: '2px 8px', borderRadius: '12px', color: 'var(--text-secondary)', fontWeight: '600' }}>
+                        {art.category || 'General'}
+                    </span>
+                </td>
                 <td style={{ textAlign: 'center' }}>
                   {renderStatus(art.status)}
                 </td>
@@ -124,13 +146,27 @@ export default function Articles() {
                     </div>
                 </td>
                 <td style={{ textAlign: 'center' }}>
-                  <button 
-                    className="glass-button" 
-                    style={{ padding: '6px', minWidth: 'auto' }}
-                    onClick={(e) => { e.stopPropagation(); openArticle(art); }}
-                  >
-                    <Eye size={14} />
-                  </button>
+                  <div style={{ display: 'flex', gap: '8px', justifyContent: 'center' }}>
+                      <button 
+                        className="glass-button" 
+                        style={{ padding: '6px', minWidth: 'auto' }}
+                        onClick={(e) => { e.stopPropagation(); openArticle(art); }}
+                        title="Xem chi tiết"
+                      >
+                        <Eye size={14} />
+                      </button>
+                      
+                      {art.status === 'ai_error' && (
+                          <button 
+                            className="glass-button" 
+                            style={{ padding: '6px', minWidth: 'auto', color: 'var(--accent-color)', borderColor: 'var(--accent-color)' }}
+                            onClick={(e) => handleRetryAI(e, artId)}
+                            title="Thử lại AI"
+                          >
+                            <RefreshCw size={14} />
+                          </button>
+                      )}
+                  </div>
                 </td>
               </tr>
               );

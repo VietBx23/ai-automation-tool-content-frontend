@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
-import { Send, FileText, Globe, CheckSquare, Square, AlertCircle } from 'lucide-react';
+import socket from '../services/socket';
+import { Send, FileText, Globe, CheckSquare, Square, AlertCircle, Zap } from 'lucide-react';
 
 export default function Publisher() {
   const [articles, setArticles] = useState([]);
@@ -10,6 +11,7 @@ export default function Publisher() {
   const [selectedSites, setSelectedSites] = useState([]);
   const [publishing, setPublishing] = useState(false);
   const [message, setMessage] = useState('');
+  const [liveToast, setLiveToast] = useState(null);
 
   useEffect(() => {
     // Lấy bài viết đã xử lý hoặc đã đăng một phần
@@ -22,7 +24,25 @@ export default function Publisher() {
         const arr = res.data?.data || [];
         setSites(arr.filter(s => s.status === 'active'));
     }).catch(console.error);
+
+    // Lắng nghe bài viết mới từ Socket.io
+    socket.on('article_processed', (newArticle) => {
+      setArticles(prev => {
+        // Tránh thêm trùng
+        const exists = prev.find(a => (a._id || a.id) === (newArticle._id || newArticle.id));
+        if (exists) return prev;
+        return [newArticle, ...prev];
+      });
+      // Hiện toast thông báo
+      setLiveToast(`⚡ New: ${newArticle.title_ai || newArticle.title_raw}`);
+      setTimeout(() => setLiveToast(null), 4000);
+    });
+
+    return () => {
+      socket.off('article_processed');
+    };
   }, []);
+
 
   const toggleArticle = (id) => {
     if (selectedArticles.includes(id)) {
@@ -75,6 +95,21 @@ export default function Publisher() {
     <div>
       <h1 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '8px', color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>Manual Publisher</h1>
       <p style={{ color: 'var(--text-secondary)', marginBottom: '32px', fontSize: '13px' }}>Push specific articles into targeted WordPress nodes intentionally.</p>
+
+      {/* Live toast notification */}
+      {liveToast && (
+        <div style={{
+          position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999,
+          background: 'linear-gradient(135deg, #1e293b, #334155)',
+          color: 'white', padding: '14px 20px', borderRadius: '12px',
+          boxShadow: '0 8px 32px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', gap: '10px',
+          animation: 'fadeIn 0.3s ease', maxWidth: '400px', fontSize: '13px', fontWeight: '500',
+          borderLeft: '4px solid #22c55e'
+        }}>
+          <Zap size={16} color="#22c55e" />
+          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{liveToast}</span>
+        </div>
+      )}
 
       {message && (
         <div className="glass-panel" style={{ padding: '12px 16px', marginBottom: '24px', borderLeft: '4px solid var(--accent-color)', display: 'flex', alignItems: 'center', gap: '10px', background: '#eff6ff', borderRadius: '6px' }}>
@@ -148,7 +183,12 @@ export default function Publisher() {
                         <label key={sId} onClick={() => toggleSite(sId)} style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background 0.2s', background: isSiteSelected ? 'white' : 'transparent' }}>
                             {isSiteSelected ? <CheckSquare size={18} color="var(--accent-color)"/> : <Square size={18} color="#cbd5e1"/> }
                             <div style={{ marginLeft: '12px', flex: 1 }}>
-                                <div style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '13px' }}>{site.site_name}</div>
+                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
+                                    <div style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '13px' }}>{site.site_name}</div>
+                                    <span style={{ fontSize: '9px', background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '2px 6px', borderRadius: '8px', color: '#64748b', fontWeight: 'bold' }}>
+                                      {site.language || 'English'}
+                                    </span>
+                                </div>
                                 <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{site.domain}</div>
                             </div>
                         </label>

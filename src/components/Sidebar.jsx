@@ -1,48 +1,65 @@
-import { NavLink } from 'react-router-dom';
-import { LayoutDashboard, Globe, FileText, Send } from 'lucide-react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Globe, FileText, Send, Bot, LogOut } from 'lucide-react';
 
-export default function Sidebar() {
-  const menuRoles = [
-    { title: 'DASHBOARD', path: '/', icon: <LayoutDashboard size={18} /> },
-    { title: 'PUBLISHER', path: '/publisher', icon: <Send size={18} /> },
-    { title: 'PBN SITES', path: '/sites', icon: <Globe size={18} /> },
-    { title: 'AI ARTICLES', path: '/articles', icon: <FileText size={18} /> },
-  ];
+const menu = [
+  { title: 'Dashboard', path: '/', icon: LayoutDashboard },
+  { title: 'Publisher', path: '/publisher', icon: Send },
+  { title: 'PBN Sites', path: '/sites', icon: Globe },
+  { title: 'AI Articles', path: '/articles', icon: FileText },
+];
+
+export default function Sidebar({ user, onLogout }) {
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    localStorage.removeItem('token');
+    localStorage.removeItem('user');
+    onLogout();
+    navigate('/');
+  };
 
   return (
-    <aside className="glass-panel" style={{ width: '240px', height: '100%', display: 'flex', flexDirection: 'column', gap: '24px', padding: '24px 0', border: 'none', borderRight: '1px solid var(--border-color)', borderRadius: 0, boxShadow: 'none' }}>
-      
-      <div style={{ padding: '0 20px', marginBottom: '8px' }}>
-        <h2 style={{ fontSize: '20px', fontWeight: '800', letterSpacing: '-0.5px', color: 'var(--text-primary)' }}>
-          AI Control<span style={{ color: 'var(--accent-color)' }}>.</span>
-        </h2>
-        <p style={{ fontSize: '11px', color: 'var(--text-secondary)', fontWeight: '600', marginTop: '4px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>System Admin</p>
+    <aside className="sidebar">
+      <div className="sidebar-logo">
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <div style={{ width: 34, height: 34, background: 'var(--accent-dim)', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <Bot size={18} color="var(--accent)" />
+          </div>
+          <div>
+            <div style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)', letterSpacing: '-0.3px' }}>
+              AI Control<span style={{ color: 'var(--accent)' }}>.</span>
+            </div>
+            <div style={{ fontSize: 10, color: 'var(--text-3)', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.5px' }}>
+              {user?.role || 'Admin'}
+            </div>
+          </div>
+        </div>
       </div>
 
-      <nav style={{ display: 'flex', flexDirection: 'column', gap: '4px', padding: '0 12px' }}>
-        {menuRoles.map((item) => (
+      <nav className="sidebar-nav">
+        {menu.map(({ title, path, icon: Icon }) => (
           <NavLink
-            key={item.path}
-            to={item.path}
-            style={({ isActive }) => ({
-              display: 'flex',
-              alignItems: 'center',
-              gap: '10px',
-              padding: '10px 14px',
-              borderRadius: '6px',
-              textDecoration: 'none',
-              color: isActive ? 'var(--accent-color)' : 'var(--text-secondary)',
-              background: isActive ? '#eff6ff' : 'transparent',
-              transition: 'var(--transition)',
-              fontWeight: isActive ? '600' : '500',
-              fontSize: '13px'
-            })}
+            key={path}
+            to={path}
+            end={path === '/'}
+            className={({ isActive }) => `nav-item${isActive ? ' active' : ''}`}
           >
-            <span style={{ color: 'inherit' }}>{item.icon}</span>
-            {item.title}
+            <Icon size={16} />
+            {title}
           </NavLink>
         ))}
       </nav>
+
+      <div className="sidebar-footer">
+        <div style={{ padding: '8px 12px', marginBottom: 8, borderRadius: 8, background: 'var(--bg-3)' }}>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 2 }}>Logged in as</div>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{user?.username || 'admin'}</div>
+        </div>
+        <button className="nav-item" onClick={handleLogout} style={{ color: 'var(--red)', width: '100%' }}>
+          <LogOut size={16} />
+          Đăng xuất
+        </button>
+      </div>
     </aside>
   );
 }

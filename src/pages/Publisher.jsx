@@ -6,202 +6,147 @@ import { Send, FileText, Globe, CheckSquare, Square, AlertCircle, Zap } from 'lu
 export default function Publisher() {
   const [articles, setArticles] = useState([]);
   const [sites, setSites] = useState([]);
-  
   const [selectedArticles, setSelectedArticles] = useState([]);
   const [selectedSites, setSelectedSites] = useState([]);
   const [publishing, setPublishing] = useState(false);
-  const [message, setMessage] = useState('');
-  const [liveToast, setLiveToast] = useState(null);
+  const [message, setMessage] = useState({ text: '', type: 'info' });
+  const [toast, setToast] = useState(null);
 
   useEffect(() => {
-    // Lấy bài viết đã xử lý hoặc đã đăng một phần
-    api.get('/articles?limit=50').then(res => {
-        const arr = res.data?.data || [];
-        setArticles(arr.filter(a => ['processed', 'published', 'processing', 'ai_error'].includes(a.status)));
+    api.get('/articles?limit=100').then(res => {
+      setArticles((res.data?.data || []).filter(a => ['processed', 'published', 'ai_error'].includes(a.status)));
     }).catch(console.error);
-
     api.get('/sites').then(res => {
-        const arr = res.data?.data || [];
-        setSites(arr.filter(s => s.status === 'active'));
+      setSites((res.data?.data || []).filter(s => s.status === 'active'));
     }).catch(console.error);
 
-    // Lắng nghe bài viết mới từ Socket.io
-    socket.on('article_processed', (newArticle) => {
-      setArticles(prev => {
-        // Tránh thêm trùng
-        const exists = prev.find(a => (a._id || a.id) === (newArticle._id || newArticle.id));
-        if (exists) return prev;
-        return [newArticle, ...prev];
-      });
-      // Hiện toast thông báo
-      setLiveToast(`⚡ New: ${newArticle.title_ai || newArticle.title_raw}`);
-      setTimeout(() => setLiveToast(null), 4000);
+    socket.on('article_processed', (a) => {
+      setArticles(prev => prev.find(x => (x._id || x.id) === (a._id || a.id)) ? prev : [a, ...prev]);
+      setToast(`⚡ New: ${a.title_ai || a.title_raw}`);
+      setTimeout(() => setToast(null), 4000);
     });
-
-    return () => {
-      socket.off('article_processed');
-    };
+    return () => socket.off('article_processed');
   }, []);
 
-
-  const toggleArticle = (id) => {
-    if (selectedArticles.includes(id)) {
-        setSelectedArticles(selectedArticles.filter(a => a !== id));
-    } else {
-        setSelectedArticles([...selectedArticles, id]);
-    }
-  };
-
-  const selectAllArticles = () => {
-    if (selectedArticles.length === articles.length) setSelectedArticles([]);
-    else setSelectedArticles(articles.map(a => a._id || a.id));
-  };
-
-  const toggleSite = (id) => {
-    if (selectedSites.includes(id)) {
-        setSelectedSites(selectedSites.filter(s => s !== id));
-    } else {
-        setSelectedSites([...selectedSites, id]);
-    }
-  };
-
-  const selectAllSites = () => {
-    if(selectedSites.length === sites.length) setSelectedSites([]);
-    else setSelectedSites(sites.map(s => s._id || s.id));
-  };
+  const toggleArticle = id => setSelectedArticles(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+  const toggleSite = id => setSelectedSites(p => p.includes(id) ? p.filter(x => x !== id) : [...p, id]);
+  const toggleAllArticles = () => setSelectedArticles(p => p.length === articles.length ? [] : articles.map(a => a._id || a.id));
+  const toggleAllSites = () => setSelectedSites(p => p.length === sites.length ? [] : sites.map(s => s._id || s.id));
 
   const publish = async () => {
-    if (selectedArticles.length === 0) return alert('Vui lòng chọn ít nhất 1 Bài viết (Article)!');
-    if (selectedSites.length === 0) return alert('Vui lòng đánh dấu ít nhất 1 Website vệ tinh!');
-    
-    setPublishing(true);
-    setMessage('');
+    if (!selectedArticles.length) return alert('Chọn ít nhất 1 bài viết!');
+    if (!selectedSites.length) return alert('Chọn ít nhất 1 website!');
+    setPublishing(true); setMessage({ text: '', type: 'info' });
     try {
-      const { data } = await api.post('/jobs/manual-publish', { 
-          articleIds: selectedArticles, 
-          websiteIds: selectedSites 
-      });
-      setMessage(data.message);
-      // Xoá dấu tick sau khi bấm
-      setSelectedSites([]);
-      setSelectedArticles([]);
-    } catch (e) { 
-      setMessage('Lỗi: ' + (e.response?.data?.message || e.message)); 
-    }
+      const { data } = await api.post('/jobs/manual-publish', { articleIds: selectedArticles, websiteIds: selectedSites });
+      setMessage({ text: data.message, type: 'success' });
+      setSelectedArticles([]); setSelectedSites([]);
+    } catch (e) { setMessage({ text: 'Lỗi: ' + (e.response?.data?.message || e.message), type: 'error' }); }
     setPublishing(false);
   };
 
+  const LANG_COLORS = { English: '#58a6ff', Hindi: '#f97316', Bengali: '#a78bfa', Urdu: '#34d399' };
+
   return (
     <div>
-      <h1 style={{ fontSize: '24px', fontWeight: '800', marginBottom: '8px', color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>Manual Publisher</h1>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: '32px', fontSize: '13px' }}>Push specific articles into targeted WordPress nodes intentionally.</p>
+      <div className="page-header">
+        <h1 className="page-title">Manual Publisher</h1>
+        <p className="page-subtitle">Push specific articles to targeted WordPress nodes.</p>
+      </div>
 
-      {/* Live toast notification */}
-      {liveToast && (
-        <div style={{
-          position: 'fixed', bottom: '24px', right: '24px', zIndex: 9999,
-          background: 'linear-gradient(135deg, #1e293b, #334155)',
-          color: 'white', padding: '14px 20px', borderRadius: '12px',
-          boxShadow: '0 8px 32px rgba(0,0,0,0.3)', display: 'flex', alignItems: 'center', gap: '10px',
-          animation: 'fadeIn 0.3s ease', maxWidth: '400px', fontSize: '13px', fontWeight: '500',
-          borderLeft: '4px solid #22c55e'
-        }}>
-          <Zap size={16} color="#22c55e" />
-          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{liveToast}</span>
+      {toast && (
+        <div className="toast">
+          <Zap size={15} color="var(--green)" />
+          <span style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{toast}</span>
         </div>
       )}
 
-      {message && (
-        <div className="glass-panel" style={{ padding: '12px 16px', marginBottom: '24px', borderLeft: '4px solid var(--accent-color)', display: 'flex', alignItems: 'center', gap: '10px', background: '#eff6ff', borderRadius: '6px' }}>
-          <AlertCircle size={18} color="var(--accent-color)" />
-          <span style={{ color: 'var(--accent-color)', fontWeight: '500', fontSize: '13px' }}>{message}</span>
+      {message.text && (
+        <div className={`alert alert-${message.type === 'error' ? 'error' : 'success'}`} style={{ marginBottom: 20 }}>
+          <AlertCircle size={14} style={{ flexShrink: 0 }} />
+          {message.text}
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'minmax(400px, 1fr) 350px', gap: '24px', alignItems: 'stretch' }}>
-         
-         {/* Khu Mảnh 1: Chọn bài viết */}
-         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-            <h2 style={{ fontSize: '15px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)', justifyContent: 'space-between' }}>
-               <div style={{display:'flex', alignItems:'center', gap:'8px'}}><FileText size={18} color="var(--accent-color)" /> 1. Select Blueprint Article(s)</div>
-               <button onClick={selectAllArticles} style={{ background:'transparent', border:'none', color:'var(--accent-color)', fontSize:'12px', fontWeight:'600', cursor:'pointer' }}>Toggle All</button>
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 320px', gap: 20, alignItems: 'start' }}>
+        {/* Articles */}
+        <div className="card" style={{ padding: 20 }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+              <FileText size={16} color="var(--accent)" /> Select Articles
+              <span className="badge badge-gray">{selectedArticles.length} selected</span>
             </h2>
-            <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', background: '#f8fafc', overflowY: 'auto', flex: 1, maxHeight: '500px' }}>
-                {articles.length === 0 ? <p style={{padding:'24px', textAlign:'center', color:'var(--text-secondary)'}}>No processed articles available.</p> : null}
-                {articles.map((art) => {
-                    const artId = art._id || art.id;
-                    const isSelected = selectedArticles.includes(artId);
-                    return (
-                        <label 
-                            key={artId} 
-                            onClick={() => toggleArticle(artId)}
-                            style={{ 
-                                display: 'flex', 
-                                alignItems: 'flex-start', 
-                                padding: '16px', 
-                                borderBottom: '1px solid var(--border-color)', 
-                                cursor: 'pointer', 
-                                background: isSelected ? 'white' : 'transparent', 
-                                transition: 'background 0.2s' 
-                            }}
-                        >
-                            {isSelected ? <CheckSquare size={18} color="var(--accent-color)"/> : <Square size={18} color="#cbd5e1"/> }
-                            <div style={{ marginLeft: '12px', flex: 1 }}>
-                                <div style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '13px', lineHeight: '1.4', marginBottom: '4px' }}>{art.title_ai || art.title_raw}</div>
-                                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
-                                    <div style={{ fontSize: '10px', color: 'var(--text-secondary)', fontFamily: 'monospace' }}>Slug: {art.slug || 'no-slug'}</div>
-                                    {art.published_to?.length > 0 && (
-                                        <div style={{ display: 'flex', gap: '4px' }}>
-                                            {art.published_to.map(site => (
-                                                <span key={site} style={{ fontSize: '9px', background: '#e0e7ff', color: '#4338ca', padding: '1px 5px', borderRadius: '3px', fontWeight: '600' }}>
-                                                    {site.replace('https://', '').replace(/\/$/, '')}
-                                                </span>
-                                            ))}
-                                        </div>
-                                    )}
-                                </div>
-                            </div>
-                        </label>
-                    );
-                })}
-            </div>
-         </div>
-
-         {/* Khu Mảnh 2: Chọn Website và Bắn */}
-         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-            <h2 style={{ fontSize: '15px', fontWeight: '700', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px', color: 'var(--text-primary)', justifyContent: 'space-between' }}>
-               <div style={{display:'flex', alignItems:'center', gap:'8px'}}><Globe size={18} color="var(--success-color)" /> 2. Target Nodes (PBN)</div>
-               <button onClick={selectAllSites} style={{ background:'transparent', border:'none', color:'var(--accent-color)', fontSize:'12px', fontWeight:'600', cursor:'pointer' }}>Toggle All</button>
-            </h2>
-            
-            <div style={{ border: '1px solid var(--border-color)', borderRadius: '8px', background: '#f8fafc', overflowY: 'auto', flex: 1, maxHeight: '350px', marginBottom: '16px' }}>
-                {sites.length === 0 ? <p style={{padding:'24px', textAlign:'center', color:'var(--text-secondary)'}}>No active sites available.</p> : null}
-                {sites.map((site) => {
-                    const sId = site._id || site.id;
-                    const isSiteSelected = selectedSites.includes(sId);
-                    return (
-                        <label key={sId} onClick={() => toggleSite(sId)} style={{ display: 'flex', alignItems: 'center', padding: '14px 16px', borderBottom: '1px solid var(--border-color)', cursor: 'pointer', transition: 'background 0.2s', background: isSiteSelected ? 'white' : 'transparent' }}>
-                            {isSiteSelected ? <CheckSquare size={18} color="var(--accent-color)"/> : <Square size={18} color="#cbd5e1"/> }
-                            <div style={{ marginLeft: '12px', flex: 1 }}>
-                                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '2px' }}>
-                                    <div style={{ fontWeight: '600', color: 'var(--text-primary)', fontSize: '13px' }}>{site.site_name}</div>
-                                    <span style={{ fontSize: '9px', background: '#f1f5f9', border: '1px solid #e2e8f0', padding: '2px 6px', borderRadius: '8px', color: '#64748b', fontWeight: 'bold' }}>
-                                      {site.language || 'English'}
-                                    </span>
-                                </div>
-                                <div style={{ fontSize: '11px', color: 'var(--text-secondary)' }}>{site.domain}</div>
-                            </div>
-                        </label>
-                    );
-                })}
-            </div>
-
-            <button onClick={publish} className="glass-button primary" disabled={publishing} style={{ justifyContent: 'center', padding: '16px', borderRadius: '10px', fontSize: '14px', background: 'var(--text-primary)' }}>
-               {publishing ? 'Dispersing packets...' : 'DIRECT OVERRIDE PUBLISH'}
-               <Send size={18} style={{marginLeft: '4px'}}/>
+            <button className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 10px' }} onClick={toggleAllArticles}>
+              {selectedArticles.length === articles.length ? 'Deselect All' : 'Select All'}
             </button>
-         </div>
+          </div>
+          <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', maxHeight: 480, overflowY: 'auto' }}>
+            {articles.length === 0
+              ? <p style={{ padding: 24, textAlign: 'center', color: 'var(--text-3)' }}>No articles available.</p>
+              : articles.map(art => {
+                const id = art._id || art.id;
+                const sel = selectedArticles.includes(id);
+                const lc = LANG_COLORS[art.language] || 'var(--text-2)';
+                return (
+                  <div key={id} className={`check-item${sel ? ' selected' : ''}`} onClick={() => toggleArticle(id)}>
+                    {sel ? <CheckSquare size={16} color="var(--accent)" style={{ flexShrink: 0 }} /> : <Square size={16} color="var(--text-3)" style={{ flexShrink: 0 }} />}
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: 13, lineHeight: 1.4, marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {art.title_ai || art.title_raw}
+                      </div>
+                      <div style={{ display: 'flex', gap: 6, alignItems: 'center', flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, color: lc, background: lc + '18', padding: '1px 6px', borderRadius: 10 }}>{art.language}</span>
+                        {art.published_to?.map(s => (
+                          <span key={s} className="badge badge-blue" style={{ fontSize: 9 }}>{s.replace('https://', '').split('/')[0]}</span>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })
+            }
+          </div>
+        </div>
 
+        {/* Sites + Publish */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="card" style={{ padding: 20 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+              <h2 style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Globe size={16} color="var(--green)" /> Target Sites
+              </h2>
+              <button className="btn btn-ghost" style={{ fontSize: 12, padding: '4px 10px' }} onClick={toggleAllSites}>
+                {selectedSites.length === sites.length ? 'Deselect' : 'All'}
+              </button>
+            </div>
+            <div style={{ border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden', maxHeight: 320, overflowY: 'auto' }}>
+              {sites.length === 0
+                ? <p style={{ padding: 20, textAlign: 'center', color: 'var(--text-3)', fontSize: 12 }}>No active sites.</p>
+                : sites.map(site => {
+                  const id = site._id || site.id;
+                  const sel = selectedSites.includes(id);
+                  return (
+                    <div key={id} className={`check-item${sel ? ' selected' : ''}`} onClick={() => toggleSite(id)}>
+                      {sel ? <CheckSquare size={15} color="var(--accent)" style={{ flexShrink: 0 }} /> : <Square size={15} color="var(--text-3)" style={{ flexShrink: 0 }} />}
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div style={{ fontWeight: 600, color: 'var(--text)', fontSize: 13, marginBottom: 2 }}>{site.site_name}</div>
+                        <div style={{ fontSize: 11, color: 'var(--text-3)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{site.domain}</div>
+                        <span className="badge badge-blue" style={{ fontSize: 9, marginTop: 4 }}>{site.language}</span>
+                      </div>
+                    </div>
+                  );
+                })
+              }
+            </div>
+          </div>
+
+          <button className="btn btn-primary" onClick={publish} disabled={publishing} style={{ justifyContent: 'center', padding: '13px', fontSize: 14, width: '100%' }}>
+            {publishing
+              ? <><span className="spin" style={{ width: 14, height: 14, border: '2px solid #0d1117', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block' }} /> Publishing...</>
+              : <><Send size={16} /> Publish ({selectedArticles.length} × {selectedSites.length})</>
+            }
+          </button>
+        </div>
       </div>
     </div>
   );

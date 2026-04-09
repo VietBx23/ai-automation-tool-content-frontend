@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import api from '../services/api';
 import socket from '../services/socket';
-import { Bot, UploadCloud, AlertCircle, Database, Globe, RefreshCw, Send, Calendar, Radio } from 'lucide-react';
-
+import { Bot, UploadCloud, AlertCircle, Database, Globe, RefreshCw, Send, Calendar, Radio, TrendingUp, Zap } from 'lucide-react';
 import { DateRange } from 'react-date-range';
 import { format } from 'date-fns';
 import 'react-date-range/dist/styles.css';
@@ -12,177 +11,131 @@ export default function Dashboard() {
   const [crawlData, setCrawlData] = useState({ maxPosts: 10 });
   const [loadingCrawl, setLoadingCrawl] = useState(false);
   const [loadingSync, setLoadingSync] = useState(false);
-  const [message, setMessage] = useState('');
+  const [message, setMessage] = useState({ text: '', type: 'info' });
   const [isCrawling, setIsCrawling] = useState(false);
   const [lastCrawlTime, setLastCrawlTime] = useState(null);
-  
   const [stats, setStats] = useState({ totalSites: 0, totalArticles: 0, todayArticles: 0, readyToPublish: 0 });
-
-  // Date Range Picker State
   const [showCalendar, setShowCalendar] = useState(false);
-  const [dateRange, setDateRange] = useState([
-    {
-      startDate: new Date(),
-      endDate: new Date(),
-      key: 'selection',
-      color: 'var(--accent-color)'
-    }
-  ]);
+  const [dateRange, setDateRange] = useState([{ startDate: new Date(), endDate: new Date(), key: 'selection', color: '#58a6ff' }]);
   const calendarRef = useRef(null);
 
-  // Đóng calendar khi click ra ngoài
   useEffect(() => {
-    function handleClickOutside(event) {
-      if (calendarRef.current && !calendarRef.current.contains(event.target)) {
-        setShowCalendar(false);
-      }
+    function handleClickOutside(e) {
+      if (calendarRef.current && !calendarRef.current.contains(e.target)) setShowCalendar(false);
     }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   const fetchStats = () => {
-    api.get('/stats').then(res => {
-       if(res.data.success) setStats(res.data.data);
-    }).catch(err => console.error("API error", err));
+    api.get('/stats').then(res => { if (res.data.success) setStats(res.data.data); }).catch(() => {});
   };
 
   useEffect(() => {
     fetchStats();
-    const interval = setInterval(fetchStats, 30000); // Giảm xuống 30s vì giờ có socket
-
-    // Lắng nghe sự kiện Socket.io
-    socket.on('crawl_cycle_start', () => {
-      setIsCrawling(true);
-    });
-    socket.on('crawl_cycle_end', (data) => {
-      setIsCrawling(false);
-      setLastCrawlTime(new Date().toLocaleTimeString('vi-VN'));
-      fetchStats(); // Tự động cập nhật stats sau mỗi chu kỳ
-    });
-
-    return () => {
-      clearInterval(interval);
-      socket.off('crawl_cycle_start');
-      socket.off('crawl_cycle_end');
-    };
+    const interval = setInterval(fetchStats, 30000);
+    socket.on('crawl_cycle_start', () => setIsCrawling(true));
+    socket.on('crawl_cycle_end', () => { setIsCrawling(false); setLastCrawlTime(new Date().toLocaleTimeString('vi-VN')); fetchStats(); });
+    return () => { clearInterval(interval); socket.off('crawl_cycle_start'); socket.off('crawl_cycle_end'); };
   }, []);
 
-
   const handleCrawl = async (e) => {
-    e.preventDefault();
-    setLoadingCrawl(true); setMessage('');
+    e.preventDefault(); setLoadingCrawl(true); setMessage({ text: '', type: 'info' });
     try {
-      const payload = {
+      const { data } = await api.post('/jobs/crawl-and-ai', {
         startDate: format(dateRange[0].startDate, 'yyyy-MM-dd'),
         endDate: format(dateRange[0].endDate, 'yyyy-MM-dd'),
         maxPosts: crawlData.maxPosts
-      };
-
-      const { data } = await api.post('/jobs/crawl-and-ai', payload);
-      setMessage(data.message);
+      });
+      setMessage({ text: data.message, type: 'success' });
       fetchStats();
-    } catch (err) { setMessage('Crawl Error: ' + (err.response?.data?.message || err.message)); }
+    } catch (err) { setMessage({ text: 'Lỗi: ' + (err.response?.data?.message || err.message), type: 'error' }); }
     setLoadingCrawl(false);
   };
 
   const handleSync = async () => {
-    setLoadingSync(true); setMessage('');
+    setLoadingSync(true); setMessage({ text: '', type: 'info' });
     try {
       const { data } = await api.post('/jobs/sync-posts');
-      setMessage(data.message);
-    } catch (err) { setMessage('Sync Error: ' + (err.response?.data?.message || err.message)); }
+      setMessage({ text: data.message, type: 'success' });
+    } catch (err) { setMessage({ text: 'Lỗi: ' + (err.response?.data?.message || err.message), type: 'error' }); }
     setLoadingSync(false);
   };
 
+  const statCards = [
+    { label: 'PBN Nodes', value: stats.totalSites, icon: Globe, color: 'var(--accent)', bg: 'var(--accent-dim)' },
+    { label: 'Total Articles', value: stats.totalArticles, icon: Database, color: 'var(--purple)', bg: 'var(--purple-dim)' },
+    { label: 'Ready to Publish', value: stats.readyToPublish, icon: TrendingUp, color: 'var(--green)', bg: 'var(--green-dim)' },
+    { label: 'Today Crawled', value: stats.todayArticles, icon: Zap, color: 'var(--yellow)', bg: 'var(--yellow-dim)' },
+  ];
+
   return (
     <div>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '8px' }}>
-        <h1 style={{ fontSize: '24px', fontWeight: '800', color: 'var(--text-primary)', letterSpacing: '-0.5px' }}>Command Center</h1>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', padding: '6px 14px', borderRadius: '20px', background: isCrawling ? '#dcfce7' : '#f1f5f9', border: `1px solid ${isCrawling ? '#86efac' : '#e2e8f0'}`, transition: 'all 0.3s' }}>
-          <Radio size={14} color={isCrawling ? '#16a34a' : '#94a3b8'} style={{ animation: isCrawling ? 'spin 1.5s linear infinite' : 'none' }} />
-          <span style={{ fontSize: '12px', fontWeight: '600', color: isCrawling ? '#16a34a' : '#94a3b8' }}>
+      <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+        <div>
+          <h1 className="page-title">Command Center</h1>
+          <p className="page-subtitle">Manage automated content pipelines and PBN distribution.</p>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', borderRadius: 20, background: isCrawling ? 'var(--green-dim)' : 'var(--bg-3)', border: `1px solid ${isCrawling ? '#1a4a2a' : 'var(--border)'}`, transition: 'all 0.3s' }}>
+          <Radio size={13} color={isCrawling ? 'var(--green)' : 'var(--text-3)'} style={{ animation: isCrawling ? 'spin 1.5s linear infinite' : 'none' }} />
+          <span style={{ fontSize: 12, fontWeight: 600, color: isCrawling ? 'var(--green)' : 'var(--text-3)' }}>
             {isCrawling ? 'CRAWLING...' : lastCrawlTime ? `Last: ${lastCrawlTime}` : 'Idle'}
           </span>
         </div>
       </div>
-      <p style={{ color: 'var(--text-secondary)', marginBottom: '32px', fontSize: '13px' }}>Manage automated content pipelines and PBN distribution.</p>
-      
-      {/* Thống kê Metrics */}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
-         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>Nodes Connected</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-               <Globe size={24} color="var(--accent-color)" />
-               <span style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)' }}>{stats.totalSites}</span>
+      {/* Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 28 }}>
+        {statCards.map(({ label, value, icon: Icon, color, bg }) => (
+          <div key={label} className="stat-card">
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <span className="stat-label">{label}</span>
+              <div className="stat-icon" style={{ background: bg }}>
+                <Icon size={18} color={color} />
+              </div>
             </div>
-         </div>
-         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>Database Volume</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-               <Database size={24} color="#6366f1" />
-               <span style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)' }}>{stats.totalArticles}</span>
-            </div>
-         </div>
-         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>LLM Processed</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-               <RefreshCw size={24} color="var(--success-color)" />
-               <span style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)' }}>{stats.readyToPublish}</span>
-            </div>
-         </div>
-         <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <span style={{ fontSize: '12px', color: 'var(--text-secondary)', fontWeight: '600', textTransform: 'uppercase' }}>Today Incoming</span>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-               <Send size={24} color="#f59e0b" />
-               <span style={{ fontSize: '28px', fontWeight: '800', color: 'var(--text-primary)' }}>{stats.todayArticles}</span>
-            </div>
-         </div>
+            <div className="stat-value">{value}</div>
+          </div>
+        ))}
       </div>
 
-      {message && (
-        <div className="glass-panel" style={{ padding: '12px 16px', marginBottom: '24px', borderLeft: '4px solid var(--accent-color)', display: 'flex', alignItems: 'center', gap: '10px', background: '#eff6ff', borderRadius: '6px' }}>
-          <AlertCircle size={18} color="var(--accent-color)" />
-          <span style={{ color: 'var(--accent-color)', fontWeight: '500', fontSize: '13px' }}>{message}</span>
+      {message.text && (
+        <div className={`alert alert-${message.type === 'error' ? 'error' : message.type === 'success' ? 'success' : 'info'}`} style={{ marginBottom: 24 }}>
+          <AlertCircle size={15} style={{ flexShrink: 0 }} />
+          {message.text}
         </div>
       )}
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(400px, 1fr))', gap: '20px' }}>
-        
-        {/* Panel 1: AI Crawler */}
-        <div className="glass-panel" style={{ padding: '24px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
-            <div style={{ padding: '10px', background: '#eff6ff', borderRadius: '10px', color: 'var(--accent-color)' }}>
-              <Bot size={22} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(380px, 1fr))', gap: 20 }}>
+        {/* Panel 1: AI Pipeline */}
+        <div className="card" style={{ padding: 24 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+            <div style={{ padding: 10, background: 'var(--accent-dim)', borderRadius: 10 }}>
+              <Bot size={20} color="var(--accent)" />
             </div>
             <div>
-              <h2 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)' }}>1. Auto AI Content Pipeline</h2>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>Fetch and rewrite raw articles via LLM</p>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>AI Content Pipeline</h2>
+              <p style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>Crawl + rewrite via LLM (4 languages)</p>
             </div>
           </div>
 
-          <form onSubmit={handleCrawl} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            
-            {/* Custom Date Range Component */}
-            <div style={{ position: 'relative' }} ref={calendarRef}>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: 'var(--text-primary)' }}>Data Extraction Range</label>
-              
-              <div 
-                className="glass-input" 
-                style={{ display: 'flex', alignItems: 'center', gap: '10px', background: '#ffffff', cursor: 'pointer', padding: '12px 16px' }}
+          <form onSubmit={handleCrawl} style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div className="form-group" ref={calendarRef} style={{ position: 'relative' }}>
+              <label className="label">Date Range</label>
+              <div
+                className="input"
+                style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', userSelect: 'none' }}
                 onClick={() => setShowCalendar(!showCalendar)}
               >
-                <Calendar size={18} color="var(--text-secondary)" />
-                <span style={{ fontSize: '13px', fontWeight: '500', color: 'var(--text-primary)' }}>
-                  {format(dateRange[0].startDate, 'MMM dd, yyyy')} - {format(dateRange[0].endDate, 'MMM dd, yyyy')}
+                <Calendar size={15} color="var(--text-3)" />
+                <span style={{ color: 'var(--text)' }}>
+                  {format(dateRange[0].startDate, 'MMM dd, yyyy')} → {format(dateRange[0].endDate, 'MMM dd, yyyy')}
                 </span>
               </div>
-
               {showCalendar && (
-                <div style={{ position: 'absolute', top: '70px', left: 0, zIndex: 1000, boxShadow: 'var(--shadow-md)', borderRadius: '10px', overflow: 'hidden', border: '1px solid var(--border-color)' }}>
+                <div style={{ position: 'absolute', top: 72, left: 0, zIndex: 100, borderRadius: 10, overflow: 'hidden', border: '1px solid var(--border)', boxShadow: 'var(--shadow)' }}>
                   <DateRange
-                    editableDateInputs={true}
+                    editableDateInputs
                     onChange={item => setDateRange([item.selection])}
                     moveRangeOnFirstSelection={false}
                     ranges={dateRange}
@@ -193,40 +146,43 @@ export default function Dashboard() {
               )}
             </div>
 
-            <div>
-              <label style={{ display: 'block', fontSize: '12px', fontWeight: '600', marginBottom: '6px', color: 'var(--text-primary)' }}>Max Items Per Run</label>
-              <input type="number" className="glass-input" style={{background: '#ffffff', padding: '12px 16px'}} min="1" max="100" value={crawlData.maxPosts} onChange={e => setCrawlData({...crawlData, maxPosts: e.target.value})} />
+            <div className="form-group">
+              <label className="label">Max Articles Per Run</label>
+              <input type="number" className="input" min="1" max="100" value={crawlData.maxPosts} onChange={e => setCrawlData({ ...crawlData, maxPosts: e.target.value })} />
             </div>
-            
-            <button className="glass-button primary" type="submit" disabled={loadingCrawl} style={{ marginTop: '8px', justifyContent: 'center', padding: '14px', fontSize: '14px', fontWeight: '700' }}>
-              {loadingCrawl ? 'Processing in background...' : 'INITIALIZE PIPELINE'}
+
+            <button className="btn btn-primary" type="submit" disabled={loadingCrawl} style={{ justifyContent: 'center', padding: '11px', fontSize: 14 }}>
+              {loadingCrawl ? <><span className="spin" style={{ width: 14, height: 14, border: '2px solid #0d1117', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block' }} /> Processing...</> : <><Bot size={16} /> Initialize Pipeline</>}
             </button>
           </form>
         </div>
 
-        {/* Panel 2: Sync WP */}
-        <div className="glass-panel" style={{ padding: '24px', display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '24px' }}>
-            <div style={{ padding: '10px', background: '#f1f5f9', color: 'var(--text-primary)', borderRadius: '10px' }}>
-              <UploadCloud size={22} />
+        {/* Panel 2: Force Sync */}
+        <div className="card" style={{ padding: 24, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
+            <div style={{ padding: 10, background: 'var(--green-dim)', borderRadius: 10 }}>
+              <UploadCloud size={20} color="var(--green)" />
             </div>
             <div>
-              <h2 style={{ fontSize: '16px', fontWeight: '700', color: 'var(--text-primary)' }}>2. Auto PBN Distribution</h2>
-              <p style={{ fontSize: '12px', color: 'var(--text-secondary)', marginTop: '2px' }}>Publish processed articles globally</p>
+              <h2 style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Force PBN Sync</h2>
+              <p style={{ fontSize: 12, color: 'var(--text-2)', marginTop: 2 }}>Push all processed articles to active sites</p>
             </div>
           </div>
 
-          <div style={{ padding: '16px', background: '#f8fafc', borderRadius: '8px', border: '1px solid var(--border-color)', flex: 1, display: 'flex', flexDirection: 'column', gap: '10px' }}>
-            <p style={{ fontSize: '13px', color: 'var(--text-secondary)', lineHeight: '1.6' }}>
-              The system scans the database for all <strong style={{color:'var(--success-color)'}}>Processed</strong> queue and pushes them to all <strong style={{color:'var(--text-primary)'}}>Active</strong> WordPress instances. Redundant cross-posts are filtered.
+          <div style={{ flex: 1, padding: 16, background: 'var(--bg-3)', borderRadius: 8, border: '1px solid var(--border)', marginBottom: 20 }}>
+            <p style={{ fontSize: 13, color: 'var(--text-2)', lineHeight: 1.7 }}>
+              Scans DB for all <span style={{ color: 'var(--green)', fontWeight: 600 }}>processed</span> articles and pushes them to all <span style={{ color: 'var(--accent)', fontWeight: 600 }}>active</span> WordPress nodes matching the article language. Duplicate posts are automatically filtered.
             </p>
+            <div style={{ marginTop: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              <span className="badge badge-green"><span className="dot dot-green" /> Auto-publish active</span>
+              <span className="badge badge-blue">Language-matched</span>
+            </div>
           </div>
 
-          <button onClick={handleSync} className="glass-button" disabled={loadingSync} style={{ marginTop: '20px', justifyContent: 'center', padding: '14px', fontSize: '14px', fontWeight: '700', background: 'var(--text-primary)', color: 'white', border: 'none' }}>
-            {loadingSync ? 'Synchronizing globally...' : 'EXECUTE FORCED SYNC'}
+          <button onClick={handleSync} className="btn btn-secondary" disabled={loadingSync} style={{ justifyContent: 'center', padding: '11px', fontSize: 14, borderColor: 'var(--green)', color: 'var(--green)' }}>
+            {loadingSync ? <><span className="spin" style={{ width: 14, height: 14, border: '2px solid var(--green)', borderTopColor: 'transparent', borderRadius: '50%', display: 'inline-block' }} /> Syncing...</> : <><RefreshCw size={16} /> Execute Force Sync</>}
           </button>
         </div>
-
       </div>
     </div>
   );

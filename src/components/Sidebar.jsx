@@ -1,9 +1,8 @@
 import { NavLink, useNavigate } from 'react-router-dom';
-import { LayoutDashboard, Globe, FileText, Send, Bot, LogOut } from 'lucide-react';
+import { LayoutDashboard, Globe, FileText, Bot, LogOut } from 'lucide-react';
 
 const menu = [
   { title: 'Dashboard', path: '/', icon: LayoutDashboard },
-  { title: 'Publisher', path: '/publisher', icon: Send },
   { title: 'PBN Sites', path: '/sites', icon: Globe },
   { title: 'AI Articles', path: '/articles', icon: FileText },
 ];

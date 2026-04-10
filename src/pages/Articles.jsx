@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react';
 import api from '../services/api';
-import { Database, Eye, ExternalLink, AlertCircle, CheckCircle, RefreshCw, Send, Search, Filter, Trash2, Clock } from 'lucide-react';
-import ArticleDrawer from '../components/ArticleDrawer';
+import { Database, Eye, ExternalLink, AlertCircle, CheckCircle, RefreshCw, Send, Search, Filter, Trash2, Clock } from 'lucide-react';import ArticleDrawer from '../components/ArticleDrawer';
 
 const STATUS_MAP = {
   published:  { label: 'Published',  cls: 'badge-blue',   icon: Send },
@@ -26,6 +25,8 @@ export default function Articles() {
   const [filterLang, setFilterLang] = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [deletingId, setDeletingId] = useState(null);
+  const [publishingId, setPublishingId] = useState(null);
+  const [toast, setToast] = useState(null);
 
   const fetchArticles = async () => {
     setLoading(true);
@@ -55,6 +56,24 @@ export default function Articles() {
     setDeletingId(null);
   };
 
+  const handlePublish = async (e, id) => {
+    e.stopPropagation();
+    setPublishingId(id);
+    try {
+      const { data } = await api.post(`/jobs/publish-single/${id}`);
+      showToast('🚀 ' + data.message, 'success');
+      setTimeout(fetchArticles, 3000);
+    } catch (err) {
+      showToast('❌ ' + (err.response?.data?.message || err.message), 'error');
+    }
+    setPublishingId(null);
+  };
+
+  const showToast = (msg, type = 'info') => {
+    setToast({ msg, type });
+    setTimeout(() => setToast(null), 4000);
+  };
+
   const filtered = data.items.filter(a => {
     const q = search.toLowerCase();
     const matchSearch = !q || (a.title_ai || a.title_raw || '').toLowerCase().includes(q);
@@ -80,6 +99,13 @@ export default function Articles() {
 
   return (
     <div>
+      {/* Toast */}
+      {toast && (
+        <div className="toast" style={{ borderLeftColor: toast.type === 'error' ? 'var(--red)' : 'var(--green)' }}>
+          {toast.type === 'error' ? <AlertCircle size={15} color="var(--red)" /> : <CheckCircle size={15} color="var(--green)" />}
+          <span style={{ flex: 1 }}>{toast.msg}</span>
+        </div>
+      )}
       {/* Header */}
       <div className="page-header" style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div>
@@ -239,6 +265,18 @@ export default function Articles() {
                       >
                         <Eye size={14} />
                       </button>
+
+                      {art.status === 'processed' && (
+                        <button
+                          className="btn btn-ghost btn-icon"
+                          style={{ color: 'var(--green)' }}
+                          onClick={e => handlePublish(e, id)}
+                          title="Publish lên site cùng ngôn ngữ"
+                          disabled={publishingId === id}
+                        >
+                          {publishingId === id ? <RefreshCw size={14} className="spin" /> : <Send size={14} />}
+                        </button>
+                      )}
 
                       {art.status === 'ai_error' && (
                         <button
